@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 )
 
 var COOKIE_PATH = "/tmp/v3_sessions"
@@ -34,6 +36,7 @@ type DataPersist struct {
 }
 
 type cookieJsonImpl struct {
+	sync.Mutex
 	u    *url.URL
 	key  string
 	data *DataPersist
@@ -51,6 +54,7 @@ func (c *cookieJsonImpl) SetMiscCookiesRaw(raw string) {
 		for _, val := range c.data.Data {
 			if val.Name == key {
 				found = true
+				c.data.MiscCookies[key] = ""
 			}
 		}
 
@@ -62,7 +66,20 @@ func (c *cookieJsonImpl) SetMiscCookiesRaw(raw string) {
 
 // GetMiscCookies implements CookieStore.
 func (c *cookieJsonImpl) GetMiscCookies() []*http.Cookie {
-	panic("unimplemented")
+	cookies := []*http.Cookie{}
+	for key, value := range c.data.MiscCookies {
+		cookie := http.Cookie{
+			Name:    key,
+			Value:   value,
+			Path:    "/",
+			Domain:  ".shopee.co.id",
+			Expires: time.Now().AddDate(0, 0, 1),
+		}
+
+		cookies = append(cookies, &cookie)
+	}
+
+	return cookies
 }
 
 // Cookies implements CookieStore.
@@ -72,6 +89,8 @@ func (c *cookieJsonImpl) Cookies(u *url.URL) []*http.Cookie {
 		cookie := dd
 		res = append(res, cookie)
 	}
+
+	// res = append(res, c.GetMiscCookies()...)
 	return res
 }
 
@@ -109,6 +128,18 @@ func (c *cookieJsonImpl) loadCookies() (*DataPersist, error) {
 }
 
 func (c *cookieJsonImpl) SaveCookies() error {
+	c.Lock()
+	defer c.Unlock()
+	newmap := map[string]string{}
+	for key, val := range c.data.MiscCookies {
+		if val == "" {
+			continue
+		}
+		newmap[key] = val
+	}
+
+	c.data.MiscCookies = newmap
+
 	fname := fmt.Sprintf("%s/%s.session", COOKIE_PATH, c.key)
 	raw, err := json.MarshalIndent(c.data, "", "  ")
 	// raw, err := json.Marshal(c.data)
