@@ -96,6 +96,19 @@ func CreateBrowserContext(ctx context.Context, username string) (*BrowserContext
 	chromedp.ListenTarget(bctx, func(ev interface{}) {
 
 		switch e := ev.(type) {
+		case *network.EventRequestWillBeSentExtraInfo:
+			cookies := e.Headers["cookie"]
+			if cookies == nil {
+				return
+			}
+
+			cookieStore.SetMiscCookiesRaw(cookies.(string))
+			err = cookieStore.SaveCookies()
+			if err != nil {
+				slog.Error(err.Error(), slog.String("func", "save_cookies"))
+				return
+			}
+
 		case *network.EventResponseReceivedExtraInfo:
 			rawcookies := e.Headers["set-cookie"]
 			if rawcookies == nil {

@@ -14,8 +14,8 @@ func main() {
 	var wg sync.WaitGroup
 	pctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	for _, key := range []string{"test2", "bedaakun"} {
+	// "test2",
+	for _, key := range []string{"test"} {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
